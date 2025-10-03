@@ -4,7 +4,7 @@ This repository contains PlatformIO project folders for testing the UCDFS CAN bu
 
 ## Overview
 
-This repository serves as the source for PlatformIO projects involved in testing and developing CAN bus communication for UC Davis Formula SAE (UCDFS). The projects here are designed to work with various microcontrollers and CAN transceivers to validate CAN bus functionality.
+This repository serves as the source for PlatformIO projects involved in testing and developing CAN bus communication for University College Dublin Formula Student (UCDFS). The projects here are designed to work with various microcontrollers and CAN transceivers to validate CAN bus functionality.
 
 ## Projects
 
