@@ -2,6 +2,11 @@
 #include <due_can.h>
 #include <can_common.h>
 
+// Maximum allowed accelerator position as a percentage of full torque
+const uint8_t MAX_ACCEL_POS = 50;
+const uint16_t TORQUE_FULL_SCALE = 32767;
+const uint16_t MAX_TORQUE_COMMAND = (uint32_t)MAX_ACCEL_POS * TORQUE_FULL_SCALE / 100;
+
 // CAN message structures
 CAN_FRAME torqueFrame;
 CAN_FRAME enableFrame;
@@ -10,6 +15,12 @@ CAN_FRAME lockFrame;
 bool triggerEnableSequence = false;
 
 void sendTorqueFrame() {
+  int rawPot = analogRead(A0);
+  uint16_t torqueCommand = (uint32_t)rawPot * MAX_TORQUE_COMMAND / 1023;
+
+  torqueFrame.data.bytes[1] = torqueCommand & 0xFF;
+  torqueFrame.data.bytes[2] = (torqueCommand >> 8) & 0xFF;
+
   Can0.sendFrame(torqueFrame);
   Serial.print("Sent torque frame: ");
   Serial.print(torqueFrame.data.bytes[0], HEX);
@@ -19,6 +30,13 @@ void sendTorqueFrame() {
   Serial.print(torqueFrame.data.bytes[2], HEX);
   Serial.print(" over CAN, ID:");
   Serial.println(torqueFrame.id, HEX);
+  Serial.print("Pot raw: ");
+  Serial.print(rawPot);
+  Serial.print(" -> torque command: ");
+  Serial.print(torqueCommand);
+  Serial.print(" (");
+  Serial.print((float)torqueCommand * 100.0f / TORQUE_FULL_SCALE, 2);
+  Serial.println("%)");
 }
 
 void sendLockFrame() {
@@ -51,6 +69,8 @@ void setup() {
   while (!Serial) {
     ; // Wait for serial port to connect
   }
+
+  pinMode(A0, INPUT);
   
   Serial.println("Arduino Due CAN Bus Example");
   Serial.println("Sending efficient 8-byte CAN message");
@@ -73,8 +93,8 @@ void setup() {
   // Bytes 1 & 2: Set the data for 15% torque
   // Calculated value for 15% torque is 4914, which is 0x1332 in hex.
   // The data is sent in Little-Endian format (low byte first)[cite: 217, 331].
-  torqueFrame.data.bytes[1] = 0x32; // Low byte of 0x1332
-  torqueFrame.data.bytes[2] = 0x13; // High byte of 0x1332
+  torqueFrame.data.bytes[1] = 0x00; // Low byte initialized to zero torque
+  torqueFrame.data.bytes[2] = 0x00; // High byte initialized to zero torque
 
   // Configure lock frame (MODE-BIT register 0x51, bit 2 set to 1)
   lockFrame.id = 0x201;
