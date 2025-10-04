@@ -1,0 +1,50 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# IDE/Editor
+*.swp
+*.swo
+*~.nib
+*.sublime-project
+*.sublime-workspace
+.idea/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.log
+*.cache
+
+# Build artifacts (PlatformIO specific)
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Compiled files
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
