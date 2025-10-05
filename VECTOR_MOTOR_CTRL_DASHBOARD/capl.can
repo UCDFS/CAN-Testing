@@ -1,0 +1,57 @@
+/*@!Encoding:1252*/
+/*
+  CAPL Script for a Test Module
+  Manages and transmits a motor enabled status.
+*/
+
+variables
+{
+  // The new status message we defined in the DBC file
+  message CanoeSimStatus gStatusMsg;
+
+  // A timer to send the status message periodically
+  msTimer gStatusTimer;
+}
+
+// This function runs every 100ms
+on timer gStatusTimer
+{
+  output(gStatusMsg); // Transmit our status message
+  setTimer(this, 100); // Reset the timer for the next cycle
+}
+
+// This function runs every time a message with ID 0x201 is received
+on message 0x201
+{
+  // Check if it's a MODE command (RegID = 0x51)
+  if (this.byte(0) == 0x51)
+  {
+    // Check if it's the lockFrame (value = 0x0004)
+    if (this.word(1) == 0x0004)
+    {
+      gStatusMsg.MotorEnabledStatus = 0; // Set status to DISABLED
+      write("CAPL: Lock frame detected. Status set to DISABLED.");
+    }
+    
+    // Check if it's the enableFrame (value = 0x0000)
+    if (this.word(1) == 0x0000)
+    {
+      gStatusMsg.MotorEnabledStatus = 1; // Set status to ENABLED
+      write("CAPL: Enable frame detected. Status set to ENABLED.");
+    }
+  }
+}
+
+// A test case is the main entry point for a test module.
+// We put our startup code in here instead of "on start".
+testcase ManageMotorStatus()
+{
+  // When the test case starts, default the status to DISABLED
+  gStatusMsg.MotorEnabledStatus = 0; // 0 = DISABLED
+  
+  // Set the timer to fire every 100ms
+  setTimer(gStatusTimer, 100);
+  
+  // The test case will now run, allowing the on timer and on message
+  // handlers to do their work in the background.
+}
