@@ -4,8 +4,13 @@
 
 // Maximum allowed accelerator position as a percentage of full torque
 const uint8_t MAX_ACCEL_POS = 50;
-const uint16_t TORQUE_FULL_SCALE = 32767;
-const uint16_t MAX_TORQUE_COMMAND = (uint32_t)MAX_ACCEL_POS * TORQUE_FULL_SCALE / 100;
+const int16_t TORQUE_FULL_SCALE = 32767;
+const int16_t MAX_TORQUE_COMMAND = (int32_t)MAX_ACCEL_POS * TORQUE_FULL_SCALE / 100;
+
+const uint8_t TORQUE_INPUT_PIN = A0;
+const int ANALOG_CENTER = 512;       // Midpoint of 10-bit ADC range for zero torque
+const int ANALOG_RANGE = 1023;       // Max reading from analogRead (0-1023)
+const uint8_t ANALOG_DEADZONE = 8;   // Ignore small variations around the center
 
 // CAN message structures
 CAN_FRAME torqueFrame;
@@ -15,11 +20,26 @@ CAN_FRAME lockFrame;
 bool triggerEnableSequence = false;
 
 void sendTorqueFrame() {
-  int rawPot = analogRead(A0);
-  uint16_t torqueCommand = (uint32_t)rawPot * MAX_TORQUE_COMMAND / 1023;
+  int rawPot = analogRead(TORQUE_INPUT_PIN);
+  int centered = rawPot - ANALOG_CENTER;
 
-  torqueFrame.data.bytes[1] = torqueCommand & 0xFF;
-  torqueFrame.data.bytes[2] = (torqueCommand >> 8) & 0xFF;
+  if (abs(centered) <= ANALOG_DEADZONE) {
+    centered = 0;
+  }
+
+  int32_t scaledCommand = (int32_t)centered * MAX_TORQUE_COMMAND / ANALOG_CENTER;
+
+  if (scaledCommand > MAX_TORQUE_COMMAND) {
+    scaledCommand = MAX_TORQUE_COMMAND;
+  } else if (scaledCommand < -MAX_TORQUE_COMMAND) {
+    scaledCommand = -MAX_TORQUE_COMMAND;
+  }
+
+  int16_t torqueCommand = (int16_t)scaledCommand;
+  uint16_t commandBytes = static_cast<uint16_t>(torqueCommand);
+
+  torqueFrame.data.bytes[1] = commandBytes & 0xFF;
+  torqueFrame.data.bytes[2] = (commandBytes >> 8) & 0xFF;
 
   Can0.sendFrame(torqueFrame);
   Serial.print("Sent torque frame: ");
@@ -70,7 +90,7 @@ void setup() {
     ; // Wait for serial port to connect
   }
 
-  pinMode(A0, INPUT);
+  pinMode(TORQUE_INPUT_PIN, INPUT);
   
   Serial.println("Arduino Due CAN Bus Example");
   Serial.println("Sending efficient 8-byte CAN message");
@@ -90,9 +110,7 @@ void setup() {
   // According to Example 5, the REGID is 0x90 
   torqueFrame.data.bytes[0] = 0x90;
 
-  // Bytes 1 & 2: Set the data for 15% torque
-  // Calculated value for 15% torque is 4914, which is 0x1332 in hex.
-  // The data is sent in Little-Endian format (low byte first)[cite: 217, 331].
+  // Bytes 1 & 2: Runtime torque command (little-endian, signed 16-bit)
   torqueFrame.data.bytes[1] = 0x00; // Low byte initialized to zero torque
   torqueFrame.data.bytes[2] = 0x00; // High byte initialized to zero torque
 
