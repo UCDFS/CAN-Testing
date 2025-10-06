@@ -36,11 +36,11 @@ int knownMessageCount = 0;
 volatile bool messageReceived = false;
 
 // Function prototypes
-void printCANMessage(unsigned long id, unsigned char dlc, unsigned char *data);
+void printCANMessage(unsigned long id, unsigned char dlc, unsigned char *data, const String &interpretation);
 void setupCANFilters();
 void printStatistics();
 void updateMessageStats(unsigned long id);
-void interpretMessage(unsigned long id, unsigned char dlc, unsigned char *data);
+String interpretMessage(unsigned long id, unsigned char dlc, unsigned char *data);
 void canISR();
 
 void setup() {
@@ -102,8 +102,7 @@ void setup() {
   Serial.println("- INT Pin: " + String(CAN_INT_PIN));
   
   Serial.println("\nListening for CAN messages...");
-  Serial.println("Time(ms) | ID    | DLC | Data                | ASCII    | Interpretation");
-  Serial.println("---------|-------|-----|---------------------|----------|---------------");
+  Serial.println("timestamp,id,dlc,data0,data1,data2,data3,data4,data5,data6,data7,interpretation");
   
   lastStatsTime = millis();
   lastMessageTime = millis();
@@ -118,9 +117,9 @@ void loop() {
     if (readResult == CAN_OK) {
       messageCount++;
       lastMessageTime = millis();
-      printCANMessage(rxId, len, rxBuf);
+  String interpretation = interpretMessage(rxId, len, rxBuf);
+  printCANMessage(rxId, len, rxBuf, interpretation);
       updateMessageStats(rxId);
-      interpretMessage(rxId, len, rxBuf);
     } else {
       errorCount++;
       Serial.println("Error reading CAN message: " + String(readResult));
@@ -144,57 +143,37 @@ void canISR() {
   messageReceived = true;
 }
 
-void printCANMessage(unsigned long id, unsigned char dlc, unsigned char *data) {
-  // Print timestamp with better formatting
+void printCANMessage(unsigned long id, unsigned char dlc, unsigned char *data, const String &interpretation) {
   unsigned long timestamp = millis();
-  Serial.print(String(timestamp));
-  
-  // Pad timestamp to 8 characters
-  int tsLen = String(timestamp).length();
-  for (int i = tsLen; i < 8; i++) {
-    Serial.print(" ");
-  }
-  Serial.print(" | ");
-  
-  // Print CAN ID with proper formatting
-  Serial.print("0x");
+  Serial.print(timestamp);
+  Serial.print(",0x");
   if (id < 0x100) Serial.print("0");
   if (id < 0x10) Serial.print("0");
   Serial.print(id, HEX);
-  Serial.print(" | ");
-  
-  // Print Data Length Code
+  Serial.print(",");
   Serial.print(dlc);
-  Serial.print("   | ");
-  
-  // Print hex data with consistent spacing
-  String dataHex = "";
-  for (int i = 0; i < 8; i++) {
-    if (i < dlc) {
-      if (data[i] < 0x10) dataHex += "0";
-      dataHex += String(data[i], HEX);
-    } else {
-      dataHex += "  "; // Empty bytes
-    }
-    if (i < 7) dataHex += " ";
-  }
-  dataHex.toUpperCase();
-  Serial.print(dataHex);
-  Serial.print(" | ");
 
+  for (int i = 0; i < 8; i++) {
+    Serial.print(",");
+    if (i < dlc) {
+      Serial.print("0x");
+      if (data[i] < 0x10) Serial.print("0");
+      Serial.print(data[i], HEX);
+    }
+  }
+
+  Serial.print(",");
+  Serial.println(interpretation);
 }
 
-// ...existing code...
-void interpretMessage(unsigned long id, unsigned char dlc, unsigned char *data) {
+String interpretMessage(unsigned long id, unsigned char dlc, unsigned char *data) {
   if (dlc == 0) {
-    Serial.println("Remote frame");
-    return;
+    return "Remote frame";
   }
 
   if (id == 0x201) {
     if (dlc < 3) {
-      Serial.println("Motor Controller Command (0x201) -> payload too short");
-      return;
+      return "0x201 payload too short";
     }
 
     uint8_t regId = data[0];
@@ -202,31 +181,45 @@ void interpretMessage(unsigned long id, unsigned char dlc, unsigned char *data) 
       case 0x90: {
         uint16_t rawTorque = (uint16_t)data[1] | ((uint16_t)data[2] << 8); // little-endian
         float torquePercent = (rawTorque / 32768.0f) * 100.0f;
-        Serial.print("Motor Torque Request (Reg 0x90) -> raw: 0x");
-        if (rawTorque < 0x1000) Serial.print("0");
-        Serial.print(rawTorque, HEX);
-        Serial.print(" (");
-        Serial.print(rawTorque);
-        Serial.print(") ≈ ");
-        Serial.print(torquePercent, 2);
-        Serial.println("%");
-        break;
+
+        String rawHex = String(rawTorque, HEX);
+        rawHex.toUpperCase();
+        while (rawHex.length() < 4) {
+          rawHex = "0" + rawHex;
+        }
+
+        String message = "MotorTorque raw=0x" + rawHex;
+        message += " (";
+        message += String(rawTorque);
+        message += ") ";
+        message += String(torquePercent, 2);
+        message += "%";
+        return message;
       }
       default: {
-        Serial.print("Motor Controller Command (Reg 0x");
-        Serial.print(regId, HEX);
-        Serial.print(") -> data:");
-        for (int i = 1; i < dlc; i++) {
-          Serial.print(" 0x");
-          if (data[i] < 0x10) Serial.print("0");
-          Serial.print(data[i], HEX);
+        String regHex = String(regId, HEX);
+        regHex.toUpperCase();
+        if (regHex.length() < 2) {
+          regHex = "0" + regHex;
         }
-        Serial.println();
-        break;
+
+        String message = "MotorCtrl reg 0x" + regHex;
+        message += " data";
+        for (int i = 1; i < dlc; i++) {
+          String byteHex = String(data[i], HEX);
+          byteHex.toUpperCase();
+          if (byteHex.length() < 2) {
+            byteHex = "0" + byteHex;
+          }
+          message += " 0x";
+          message += byteHex;
+        }
+        return message;
       }
     }
-    return;
   }
+
+  return "";
 }
 
 void updateMessageStats(unsigned long id) {

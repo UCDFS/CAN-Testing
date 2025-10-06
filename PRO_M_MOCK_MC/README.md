@@ -80,21 +80,36 @@ If you need to use different pins, update them in `include/can_config.h`:
 
    ```
    =================================
-     SparkFun Pro Micro CAN Listener
-     HW-184 MCP2515 CAN Controller
+     Enhanced CAN Bus Listener v2.0
+     SparkFun Pro Micro + MCP2515
    =================================
    Initializing MCP2515... SUCCESS!
 
    Configuration:
    - Bitrate: 500 kbps
-   - Crystal: 8 MHz
+   - Crystal: Auto-detected
    - CS Pin: 10
 
    Listening for CAN messages...
-   Time(ms) | ID    | DLC | Data                | ASCII
-   ---------|-------|-----|---------------------|--------
-   12345    | 0x123 | 8   | 01 02 03 04 05 06 07 08 | ........
-   12367    | 0x456 | 4   | FF AA BB CC         | ....
+   timestamp,id,dlc,data0,data1,data2,data3,data4,data5,data6,data7,interpretation
+   12345,0x123,8,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+   12367,0x456,4,0xFF,0xAA,0xBB,0xCC,,,,,
+   ```
+
+4. **Graphical Monitor (Optional):**
+
+   A lightweight Tkinter-based viewer is provided in `tools/can_gui.py`. It consumes the CSV stream from the board and maintains one row per CAN ID, refreshing the hex payload in-place when updates arrive.
+
+   Install dependency:
+
+   ```bash
+   python3 -m pip install pyserial
+   ```
+
+   Run the viewer (replace the serial port with your device):
+
+   ```bash
+   python3 tools/can_gui.py /dev/tty.usbmodem101 --baud 115200
    ```
 
 ## Troubleshooting
