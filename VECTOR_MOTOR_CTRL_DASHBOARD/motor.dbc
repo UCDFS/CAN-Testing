@@ -42,7 +42,7 @@ BO_ 768 CanoeSimStatus: 1 Vector__XXX
 
 BO_ 513 MotorReceiveID: 3 Vector__XXX
  SG_ ENABLED m81 : 8|16@1+ (1,0) [0|0] "" Vector__XXX
- SG_ TorqueValue m144 : 8|16@1+ (0.0030518,0) [0|0] "%" Vector__XXX
+ SG_ TorqueValue m144 : 8|16@1- (1,0) [0|0] "TORQUE%" Vector__XXX
  SG_ RegisterID M : 7|8@0+ (1,0) [0|0] "" Vector__XXX
 
 

@@ -1,19 +1,18 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Panel Type="Vector.CANalyzer.Panels.PanelSerializer, Vector.CANalyzer.Panels.Serializer, Version=19.2.76.0, Culture=neutral, PublicKeyToken=null">
   <Object Type="Vector.CANalyzer.Panels.Runtime.Panel, Vector.CANalyzer.Panels.Common, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="Panel" ControlName="analog_motor %">
-    <Object Type="Vector.CANalyzer.Panels.Design.MeterControl, Vector.CANalyzer.Panels.CommonControls, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="X824d8d2fe6db0e4475e9cf1efa90328ed80f" ControlName="Meter 1">
-      <Property Name="Name">X824d8d2fe6db0e4475e9cf1efa90328ed80f</Property>
-      <Property Name="Size">277, 241</Property>
-      <Property Name="Location">335, 38</Property>
+    <Object Type="Vector.CANalyzer.Panels.Design.LCDControl, Vector.CANalyzer.Panels.CommonControls, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="X1ac7571cef0e7e4497e9bd4e62662c480329" ControlName="LCD Control 1">
+      <Property Name="Name">X1ac7571cef0e7e4497e9bd4e62662c480329</Property>
+      <Property Name="Size">164, 50</Property>
+      <Property Name="Location">410, 110</Property>
+      <Property Name="DecimalPlaces">2</Property>
+      <Property Name="NumberIntDigits">3</Property>
       <Property Name="SymbolConfiguration">8;2;motor;;MotorReceiveID;TorqueValue;1;CAN;;-1;;;Value;;;0</Property>
-      <Property Name="SweepAngleFrom">-90</Property>
-      <Property Name="SweepAngleTo">90</Property>
-      <Property Name="NeedleShape">TriangleWithPoint</Property>
     </Object>
     <Object Type="Vector.CANalyzer.Panels.Design.AnalogGaugeControl, Vector.CANalyzer.Panels.AnalogGauge, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="Xd67d6530ee9e5e4ef4e8c86e2b80c0b5ecaa" ControlName="Analog Gauge 1">
       <Property Name="Name">Xd67d6530ee9e5e4ef4e8c86e2b80c0b5ecaa</Property>
       <Property Name="Size">329, 270</Property>
-      <Property Name="Location">0, 0</Property>
+      <Property Name="Location">36, 0</Property>
       <Property Name="ScaleMin">0</Property>
       <Property Name="ScaleMax">100</Property>
       <Property Name="LowerRangeLimit">30</Property>
@@ -35,12 +34,6 @@
         <Argument>30</Argument>
         <Argument>80</Argument>
       </Property>
-    </Object>
-    <Object Type="Vector.CANalyzer.Panels.Design.PictureBoxControl, Vector.CANalyzer.Panels.CommonControls, Version=18.0.150.0, Culture=neutral, PublicKeyToken=null" Name="Xc93fd7f9ecbf2e4c6deb543eda1638755909" ControlName="Picture Box 1">
-      <Property Name="Name">Xc93fd7f9ecbf2e4c6deb543eda1638755909</Property>
-      <Property Name="Size">277, 164</Property>
-      <Property Name="Location">335, 5</Property>
-      <Property Name="ImageFile">dial_275x180_sans.jpg</Property>
     </Object>
     <Property Name="Name">Panel</Property>
     <Property Name="Size">617, 270</Property>

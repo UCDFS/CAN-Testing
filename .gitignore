@@ -48,3 +48,6 @@ Desktop.ini
 *.zip
 *.tar.gz
 *.rar
+TEENSY_COMMAND_MOTOR/.vscode/settings.json
+TEENSY_COMMAND_MOTOR/.vscode/extensions.json
+TEENSY_COMMAND_MOTOR/.vscode/extensions.json
