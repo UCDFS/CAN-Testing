@@ -113,7 +113,7 @@ void setup() {
   Serial.print("Logging to: ");
   Serial.println(filename);
   Serial.println("Sequence:");
-  Serial.println("1. Start cyclic STATUS heartbeat");
+  Serial.println("1. Start cyclic STATUS and RPM heartbeat");
   Serial.println("2. Read DC bus voltage");
   Serial.println("3. Clear errors");
   Serial.println("4. Configure CAN timeout");
@@ -154,10 +154,13 @@ void handleSerialInput() {
 
 void executeStep(int step) {
   switch (step) {
-    case 1: requestStatusCyclic(0xFF); break; // heartbeat every 255 ms
+    case 1: 
+      requestStatusCyclic(100);
+      requestSpeedCyclic(100);
+      break; // heartbeat every 100 ms
     case 2: requestDCBusOnce(); break;
     case 3: clearErrors(); break;
-    case 4: configureCanTimeout(500); break;
+    case 4: configureCanTimeout(2000); break;
     case 5:
       clearErrors();
       delay(100);
