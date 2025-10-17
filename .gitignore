@@ -23,6 +23,7 @@ Desktop.ini
 *.sublime-project
 *.sublime-workspace
 .idea/
+.vscode/
 
 # Temporary files
 *.tmp
@@ -44,13 +45,13 @@ Desktop.ini
 *.so
 *.dylib
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
 # Archives
 *.zip
 *.tar.gz
 *.rar
-TEENSY_COMMAND_MOTOR/.vscode/settings.json
-TEENSY_COMMAND_MOTOR/.vscode/extensions.json
-TEENSY_COMMAND_MOTOR/.vscode/extensions.json
-TEENSY_COMMAND_MOTOR/.vscode/settings.json
-TEENSY_COMMAND_MOTOR/.vscode/settings.json
-/TEENSY_COMMAND_MOTOR/.vscode
