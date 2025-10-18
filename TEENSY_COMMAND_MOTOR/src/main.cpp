@@ -20,6 +20,9 @@ int currentStep = 0;
 int16_t currentTorque = 0;
 uint32_t lastTorqueSend = 0;
 bool bamocarOnline = false;
+int rpmFeedback = 0;
+int statusWord = 0;
+float dcBusVoltage = 0.0;
 
 // ---------- Function prototypes ----------
 void executeStep(int step);
@@ -39,6 +42,7 @@ String interpretBamocarMessage(const CAN_message_t &msg);
 void logCANFrame(const CAN_message_t &msg, const char *dir);
 String generateFilename();
 void dumpLogToSerial();
+void sendTelemetry(); // new
 
 // ---------- Logging ----------
 String generateFilename() {
@@ -70,6 +74,11 @@ void logCANFrame(const CAN_message_t &msg, const char *dir) {
   }
   logFile.print("\"\r\n");
   logFile.flush();
+
+  // ---------- Stream CAN frame to ESP ----------
+  Serial2.printf("CAN:%s,0x%03X,%d", dir, msg.id, msg.len);
+  for (int i = 0; i < msg.len; i++) Serial2.printf(",0x%02X", msg.buf[i]);
+  Serial2.println();
 }
 
 void sendCAN(const CAN_message_t &msg) {
@@ -79,7 +88,8 @@ void sendCAN(const CAN_message_t &msg) {
 
 // ---------- Setup ----------
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(115200);   // USB debugging
+  Serial2.begin(115200);  // ESP8266 link (TX2/RX2)
 
   Can1.begin();
   Can1.setBaudRate(500000);
@@ -103,42 +113,33 @@ void setup() {
   Serial.println("=== BAMOCAR Headless Bring-Up ===");
   Serial.print("Logging to: ");
   Serial.println(filename);
+  Serial2.println("STATUS:INITIALISING");
 
-  // Step 1: Start cyclic STATUS and RPM
   executeStep(1);
-
-  // Wait for Bamocar to respond to STATUS messages
   Serial.println("Waiting for Bamocar to respond...");
-  uint32_t startTime = millis();
-  while (!bamocarOnline && millis() - startTime < 10000) {  // 10s timeout
+  while (!bamocarOnline) {
     requestStatusOnce();
     readCanMessages();
-    delay(100);
+    delay(300);
   }
 
-  if (!bamocarOnline) {
-    Serial.println("No Bamocar response detected. Aborting.");
-    while (1);
-  }
+
   Serial.println("Bamocar online detected.");
+  Serial2.println("STATUS:ONLINE");
 
-  // Step 2 → 8 sequence
   executeStep(2); delay(200);
   executeStep(3); delay(200);
   executeStep(4); delay(200);
   executeStep(5); delay(500);
   executeStep(6); delay(500);
 
-   // Wait for pedal to be released (pot near rest)
   Serial.println("Waiting for pedal release...");
   int potValue = 0;
-  for (int i = 0; i < 10; i++) {  // average a few readings
+  for (int i = 0; i < 10; i++) {
     potValue += analogRead(A0);
     delay(10);
   }
   potValue /= 10;
-
-  // If pedal > ~5% pressed, wait until released
   while ((2930 - potValue) * 100.0f / (2930 - 1860) > 5.0f) {
     potValue = analogRead(A0);
     delay(50);
@@ -146,6 +147,7 @@ void setup() {
   Serial.println("Pedal released, continuing...");
 
   executeStep(7);
+  Serial2.println("STATUS:TORQUE_CONTROL");
 }
 
 // ---------- Loop ----------
@@ -162,6 +164,7 @@ void loop() {
   if (millis() - lastFlush > 500) {
     logFile.flush();
     lastFlush = millis();
+    sendTelemetry();
   }
 }
 
@@ -190,13 +193,6 @@ void executeStep(int step) {
     case 7:
       Serial.println("Torque control active (A0)");
       Serial.printf("Max accel cap: %d%%\n", MAX_ACCEL_PERCENT);
-      break;
-    case 8:
-      // disableDrive();
-      Serial.println("Drive disabled");
-      break;
-    case 9:
-      dumpLogToSerial();
       break;
   }
 }
@@ -302,12 +298,35 @@ void readCanMessages() {
     logCANFrame(msg, "RX");
 
     if (msg.id == BAMOCAR_TX_ID && msg.len >= 3) {
-      if (msg.buf[0] == 0x40) {
+      uint8_t reg = msg.buf[0];
+
+      if (reg == 0x40) { // STATUS register
         bamocarOnline = true;
+        uint16_t status = msg.buf[1] | (msg.buf[2] << 8);
+        bool enabled = status & 0x0001;
+        bool ready = status & 0x0004;
+        bool fault = status & 0x0040;
+
+        // Debug print to USB Serial
+        Serial.printf("→ STATUS 0x%04X | Enabled:%d Ready:%d Fault:%d\n",
+                      status, enabled, ready, fault);
+
+        // Send readable status to ESP8266
+        Serial2.printf("STATUS:Enabled=%d,Ready=%d,Fault=%d\n",
+                       enabled, ready, fault);
+      }
+
+      else if (reg == 0x30) { // RPM feedback
+        rpmFeedback = msg.buf[1] | (msg.buf[2] << 8);
+      }
+
+      else if (reg == 0xEB) { // DC bus voltage
+        dcBusVoltage = (msg.buf[1] | (msg.buf[2] << 8)) * 0.1f;
       }
     }
   }
 }
+
 
 // ---------- Interpret known registers ----------
 String interpretBamocarMessage(const CAN_message_t &msg) {
@@ -351,13 +370,10 @@ void updateTorqueFromPot() {
   currentTorque = (int16_t)(TORQUE_MAX * (potPercent / 100.0f));
 }
 
-// ---------- Log dump ----------
-void dumpLogToSerial() {
-  logFile.flush();
-  logFile.close();
-  File readFile = SD.open(logFile.name(), FILE_READ);
-  if (!readFile) return;
-  while (readFile.available()) Serial.write(readFile.read());
-  readFile.close();
-  logFile = SD.open(logFile.name(), FILE_WRITE);
+// ---------- Telemetry output ----------
+void sendTelemetry() {
+  Serial2.printf("RPM:%d\n", rpmFeedback);
+  Serial2.printf("TORQUE:%d\n", currentTorque);
+  Serial2.printf("STATUS:%d\n", statusWord);
+  Serial2.printf("DCBUS:%.1f\n", dcBusVoltage);
 }
