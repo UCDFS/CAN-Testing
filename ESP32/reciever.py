@@ -15,7 +15,7 @@ request= b"GET / HTTP/1.1\r\nHost:" + host.encode() + b"\r\n\r\n"
 s.sendall(request)
 time.sleep(0.5)
 while True:
-    time.sleep(0.2)
+    time.sleep(0.1)
     data=s.recv(4096)
     print(data.decode())
 print("bruh")

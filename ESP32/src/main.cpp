@@ -11,10 +11,17 @@ WebServer server(80);
 // Define what happens when someone visits the root page
 String text;
 void handleRoot() {
+  WiFiClient client = server.client();
   server.send(200, "text/html", "");
-  for (int i=0;i<5;i++){
-    delay(1000);
-     server.sendContent(String(i));
+  Serial.println("connected");
+  while (client.connected()){
+    delay(100);
+    if(Serial.available()){
+      text=Serial.readStringUntil('\n');
+      server.sendContent(text);
+    }else{
+      server.sendContent("aint working bruh");
+    }
   }
 }
 
