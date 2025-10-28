@@ -1,7 +1,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <Arduino.h>
-
+//random comment to test git
 const char* ssid = "ESP32_Hotspot";
 const char* password = "12345678"; // must be at least 8 chars
 
