@@ -1,277 +1,31 @@
+// Serial1 -> Serial passthrough for viewing UART output in the Serial Monitor
+
 #include <Arduino.h>
-#include <SPI.h>
-#include <mcp_can.h>
 
-// Pin definitions for SparkFun Pro Micro
-#define CAN_CS_PIN    10    // Chip Select pin
-#define CAN_INT_PIN   2     // Interrupt pin
-
-// Create MCP_CAN object
-MCP_CAN CAN(CAN_CS_PIN);
-
-// Variables for CAN message handling
-unsigned long rxId;
-unsigned char len = 0;
-unsigned char rxBuf[8];
-
-// Enhanced statistics and filtering
-unsigned long messageCount = 0;
-unsigned long errorCount = 0;
-unsigned long lastStatsTime = 0;
-unsigned long lastMessageTime = 0;
-const unsigned long STATS_INTERVAL = 10000; // Print stats every 10 seconds
-const unsigned long MESSAGE_TIMEOUT = 5000;  // Detect silence after 5 seconds
-
-// Message filtering and analysis
-struct MessageStats {
-  unsigned long id;
-  unsigned long count;
-  unsigned long lastSeen;
-};
-
-MessageStats knownMessages[16]; // Track up to 16 different message IDs
-int knownMessageCount = 0;
-
-// Interrupt flag
-volatile bool messageReceived = false;
-
-// Function prototypes
-void printCANMessage(unsigned long id, unsigned char dlc, unsigned char *data, const String &interpretation);
-void setupCANFilters();
-void printStatistics();
-void updateMessageStats(unsigned long id);
-String interpretMessage(unsigned long id, unsigned char dlc, unsigned char *data);
-void canISR();
+static constexpr uint32_t USB_BAUD = 115200;
+static constexpr uint32_t UART_BAUD = 115200;
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(USB_BAUD);
   while (!Serial) {
     delay(10);
   }
-  
-  Serial.println("=================================");
-  Serial.println("  Enhanced CAN Bus Listener v2.0");
-  Serial.println("  SparkFun Pro Micro + MCP2515");
-  Serial.println("=================================");
-  
-  // Setup interrupt pin
-  pinMode(CAN_INT_PIN, INPUT);
-  
-  Serial.print("Initializing MCP2515...");
-  
-  // Try different configurations if first fails
-  byte initResult = CAN.begin(MCP_ANY, CAN_500KBPS, MCP_8MHZ);
-  if (initResult != CAN_OK) {
-    Serial.println(" FAILED with 8MHz crystal!");
-    Serial.print("Trying 16MHz crystal...");
-    initResult = CAN.begin(MCP_ANY, CAN_500KBPS, MCP_16MHZ);
-  }
-  
-  if (initResult == CAN_OK) {
-    Serial.println(" SUCCESS!");
-  } else {
-    Serial.println(" FAILED!");
-    Serial.println("Error code: " + String(initResult));
-    Serial.println("Check wiring, crystal frequency, and connections.");
-    while (1) {
-      digitalWrite(LED_BUILTIN, HIGH);
-      delay(200);
-      digitalWrite(LED_BUILTIN, LOW);
-      delay(200);
-    }
-  }
-  
-  // Set to normal mode
-  CAN.setMode(MCP_NORMAL);
-  
-  // Enable interrupt
-  if (digitalPinToInterrupt(CAN_INT_PIN) != NOT_AN_INTERRUPT) {
-    attachInterrupt(digitalPinToInterrupt(CAN_INT_PIN), canISR, FALLING);
-    Serial.println("Interrupt enabled on pin " + String(CAN_INT_PIN));
-  } else {
-    Serial.println("Warning: Interrupt not available, using polling mode");
-  }
-  
-  // Setup filters (optional)
-  setupCANFilters();
-  
-  Serial.println("\nConfiguration:");
-  Serial.println("- Bitrate: 500 kbps");
-  Serial.println("- Crystal: Auto-detected");
-  Serial.println("- CS Pin: " + String(CAN_CS_PIN));
-  Serial.println("- INT Pin: " + String(CAN_INT_PIN));
-  
-  Serial.println("\nListening for CAN messages...");
-  Serial.println("timestamp,id,dlc,data0,data1,data2,data3,data4,data5,data6,data7,interpretation");
-  
-  lastStatsTime = millis();
-  lastMessageTime = millis();
+
+#ifdef HAVE_HWSERIAL1
+  Serial1.begin(UART_BAUD);
+  Serial.println("Serial bridge ready: forwarding Serial1 -> Serial");
+#else
+  Serial.println("ERROR: This board/core does not provide Serial1 (HAVE_HWSERIAL1 not defined). الن");
+#endif
 }
 
 void loop() {
-  // Check for messages (interrupt-driven or polling)
-  if (messageReceived || (CAN_MSGAVAIL == CAN.checkReceive())) {
-    messageReceived = false;
-    
-    byte readResult = CAN.readMsgBuf(&rxId, &len, rxBuf);
-    if (readResult == CAN_OK) {
-      messageCount++;
-      lastMessageTime = millis();
-  String interpretation = interpretMessage(rxId, len, rxBuf);
-  printCANMessage(rxId, len, rxBuf, interpretation);
-      updateMessageStats(rxId);
-    } else {
-      errorCount++;
-      Serial.println("Error reading CAN message: " + String(readResult));
+#ifdef HAVE_HWSERIAL1
+  while (Serial1.available() > 0) {
+    const int b = Serial1.read();
+    if (b >= 0) {
+      Serial.write(static_cast<uint8_t>(b));
     }
   }
-
-  
-  // Detect bus silence
-  if (millis() - lastMessageTime > MESSAGE_TIMEOUT && messageCount > 0) {
-    static bool silenceReported = false;
-    if (!silenceReported) {
-      Serial.println("\n*** CAN Bus appears silent ***");
-      silenceReported = true;
-    }
-  }
-  
-  delay(1);
-}
-
-void canISR() {
-  messageReceived = true;
-}
-
-void printCANMessage(unsigned long id, unsigned char dlc, unsigned char *data, const String &interpretation) {
-  unsigned long timestamp = millis();
-  Serial.print(timestamp);
-  Serial.print(",0x");
-  if (id < 0x100) Serial.print("0");
-  if (id < 0x10) Serial.print("0");
-  Serial.print(id, HEX);
-  Serial.print(",");
-  Serial.print(dlc);
-
-  for (int i = 0; i < 8; i++) {
-    Serial.print(",");
-    if (i < dlc) {
-      Serial.print("0x");
-      if (data[i] < 0x10) Serial.print("0");
-      Serial.print(data[i], HEX);
-    }
-  }
-
-  Serial.print(",");
-  Serial.println(interpretation);
-}
-
-String interpretMessage(unsigned long id, unsigned char dlc, unsigned char *data) {
-  if (dlc == 0) {
-    return "Remote frame";
-  }
-
-  if (id == 0x201) {
-    if (dlc < 3) {
-      return "0x201 payload too short";
-    }
-
-    uint8_t regId = data[0];
-    switch (regId) {
-      case 0x90: {
-        uint16_t rawTorque = (uint16_t)data[1] | ((uint16_t)data[2] << 8); // little-endian
-        float torquePercent = (rawTorque / 32768.0f) * 100.0f;
-
-        String rawHex = String(rawTorque, HEX);
-        rawHex.toUpperCase();
-        while (rawHex.length() < 4) {
-          rawHex = "0" + rawHex;
-        }
-
-        String message = "MotorTorque raw=0x" + rawHex;
-        message += " (";
-        message += String(rawTorque);
-        message += ") ";
-        message += String(torquePercent, 2);
-        message += "%";
-        return message;
-      }
-      default: {
-        String regHex = String(regId, HEX);
-        regHex.toUpperCase();
-        if (regHex.length() < 2) {
-          regHex = "0" + regHex;
-        }
-
-        String message = "MotorCtrl reg 0x" + regHex;
-        message += " data";
-        for (int i = 1; i < dlc; i++) {
-          String byteHex = String(data[i], HEX);
-          byteHex.toUpperCase();
-          if (byteHex.length() < 2) {
-            byteHex = "0" + byteHex;
-          }
-          message += " 0x";
-          message += byteHex;
-        }
-        return message;
-      }
-    }
-  }
-
-  return "";
-}
-
-void updateMessageStats(unsigned long id) {
-  // Find existing entry or create new one
-  for (int i = 0; i < knownMessageCount; i++) {
-    if (knownMessages[i].id == id) {
-      knownMessages[i].count++;
-      knownMessages[i].lastSeen = millis();
-      return;
-    }
-  }
-  
-  // Add new message ID if we have space
-  if (knownMessageCount < 16) {
-    knownMessages[knownMessageCount].id = id;
-    knownMessages[knownMessageCount].count = 1;
-    knownMessages[knownMessageCount].lastSeen = millis();
-    knownMessageCount++;
-  }
-}
-
-void printStatistics() {
-  Serial.println("\n" + String("=").substring(0, 50));
-  Serial.println("STATISTICS - Uptime: " + String(millis()/1000) + "s");
-  Serial.println("Total messages: " + String(messageCount));
-  Serial.println("Errors: " + String(errorCount));
-  Serial.println("Message rate: " + String((float)messageCount / (millis()/1000.0), 2) + " msg/s");
-  
-  Serial.println("\nKnown Message IDs:");
-  for (int i = 0; i < knownMessageCount; i++) {
-    Serial.print("  0x");
-    if (knownMessages[i].id < 0x100) Serial.print("0");
-    if (knownMessages[i].id < 0x10) Serial.print("0");
-    Serial.print(knownMessages[i].id, HEX);
-    Serial.print(": " + String(knownMessages[i].count) + " msgs");
-    Serial.println(" (last: " + String((millis() - knownMessages[i].lastSeen)/1000) + "s ago)");
-  }
-  Serial.println(String("=").substring(0, 50) + "\n");
-}
-
-void setupCANFilters() {
-  // Uncomment to enable filtering for specific message ranges
-  /*
-  // Accept messages in range 0x470-0x47F
-  CAN.init_Mask(0, 0, 0x7F0);        // Mask: ignore lower 4 bits
-  CAN.init_Filt(0, 0, 0x470);        // Filter: accept 0x470-0x47F
-  
-  // Accept specific high-priority messages
-  CAN.init_Mask(1, 0, 0x7FF);        // Mask: exact match
-  CAN.init_Filt(1, 0, 0x001);        // Emergency messages
-  CAN.init_Filt(2, 0, 0x002);        // System status
-  
-  Serial.println("CAN filters enabled: 0x470-0x47F, 0x001, 0x002");
-  */
+#endif
 }

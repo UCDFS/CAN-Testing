@@ -1,0 +1,126 @@
+#include "bamocar.h"
+#include "logging.h"
+
+void requestStatusCyclic(uint8_t interval_ms) {
+  CAN_message_t msg = {0};
+  msg.id = BAMOCAR_RX_ID;
+  msg.len = 3;
+  msg.buf[0] = 0x3D;
+  msg.buf[1] = 0x40;
+  msg.buf[2] = interval_ms;
+  sendCAN(msg);
+}
+
+void requestStatusOnce() {
+  CAN_message_t msg = {0};
+  msg.id = BAMOCAR_RX_ID;
+  msg.len = 3;
+  msg.buf[0] = 0x3D;
+  msg.buf[1] = 0x40;
+  msg.buf[2] = 0x00;
+  sendCAN(msg);
+}
+
+void requestSpeedCyclic(uint8_t interval_ms) {
+  CAN_message_t msg = {0};
+  msg.id = BAMOCAR_RX_ID;
+  msg.len = 3;
+  msg.buf[0] = 0x3D;
+  msg.buf[1] = 0x30;
+  msg.buf[2] = interval_ms;
+  sendCAN(msg);
+}
+
+void requestDCBusOnce() {
+  CAN_message_t msg = {0};
+  msg.id = BAMOCAR_RX_ID;
+  msg.len = 3;
+  msg.buf[0] = 0x3D;
+  msg.buf[1] = 0xEB;
+  msg.buf[2] = 0x00;
+  sendCAN(msg);
+}
+
+void clearErrors() {
+  CAN_message_t msg = {0};
+  msg.id = BAMOCAR_RX_ID;
+  msg.len = 3;
+  msg.buf[0] = 0x8E;
+  msg.buf[1] = 0x00;
+  msg.buf[2] = 0x00;
+  sendCAN(msg);
+}
+
+void configureCanTimeout(uint16_t ms) {
+  CAN_message_t msg = {0};
+  msg.id = BAMOCAR_RX_ID;
+  msg.len = 3;
+  msg.buf[0] = 0xD0;
+  msg.buf[1] = ms & 0xFF;
+  msg.buf[2] = (ms >> 8) & 0xFF;
+  sendCAN(msg);
+}
+
+void enableDrive() {
+  CAN_message_t msg = {0};
+  msg.id = BAMOCAR_RX_ID;
+  msg.len = 3;
+  msg.buf[0] = 0x51;
+  msg.buf[1] = 0x04;
+  msg.buf[2] = 0x00;
+  sendCAN(msg);
+  delay(100);
+  msg.buf[1] = 0x00;
+  sendCAN(msg);
+}
+
+void disableDrive() {
+  CAN_message_t msg = {0};
+  msg.id = BAMOCAR_RX_ID;
+  msg.len = 3;
+  msg.buf[0] = 0x51;
+  msg.buf[1] = 0x04;
+  msg.buf[2] = 0x00;
+  sendCAN(msg);
+}
+
+void sendTorqueCommand(int16_t torqueValue) {
+  CAN_message_t msg = {0};
+  msg.id = BAMOCAR_RX_ID;
+  msg.len = 3;
+  msg.buf[0] = 0x90;
+  msg.buf[1] = torqueValue & 0xFF;
+  msg.buf[2] = (torqueValue >> 8) & 0xFF;
+  sendCAN(msg);
+}
+
+// ---------- CAN RX ----------
+void readCanMessages() {
+  CAN_message_t msg;
+  while (Can1.read(msg)) {
+    logCANFrame(msg, "RX");
+
+    if (msg.id == BAMOCAR_TX_ID && msg.len >= 3) {
+      uint8_t reg = msg.buf[0];
+
+      if (reg == 0x40) { // STATUS register
+        bamocarOnline = true;
+        uint16_t status = msg.buf[1] | (msg.buf[2] << 8);
+        bool enabled = status & 0x0001;
+        bool ready = status & 0x0004;
+        bool fault = status & 0x0040;
+
+        Serial.printf("→ STATUS 0x%04X | Enabled:%d Ready:%d Fault:%d\n",
+                      status, enabled, ready, fault);
+      }
+
+      else if (reg == 0x30) { // RPM feedback
+        rpmFeedback = msg.buf[1] | (msg.buf[2] << 8);
+      }
+
+      else if (reg == 0xEB) { // DC bus voltage
+        dcBusVoltage = (msg.buf[1] | (msg.buf[2] << 8)) * 0.1f;
+      }
+    }
+  }
+}
