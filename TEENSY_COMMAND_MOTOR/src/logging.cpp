@@ -45,7 +45,7 @@ void logWriteHeader() {
 // Always 13 columns; unused byte fields are empty.
 void logCANFrame(const CAN_message_t &msg, const char *dir) {
   char line[80];
-  int n = sprintf(line, "C,%lu,%s,%03X,%d", millis(), dir, msg.id, msg.len);
+  int n = sprintf(line, "C,%lu,%s,%03lX,%d", millis(), dir, msg.id, msg.len);
   for (int i = 0; i < 8; i++) {
     if (i < msg.len) n += sprintf(line + n, ",%02X", msg.buf[i]);
     else              line[n++] = ',';

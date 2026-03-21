@@ -31,6 +31,28 @@ void requestSpeedCyclic(uint8_t interval_ms) {
   sendCAN(msg);
 }
 
+void requestCurrentCyclic(uint8_t interval_ms) {
+  CAN_message_t msg = {0};
+  msg.id = BAMOCAR_RX_ID;
+  msg.len = 3;
+  msg.buf[0] = 0x3D;
+  msg.buf[1] = 0x20;
+  msg.buf[2] = interval_ms;
+  sendCAN(msg);
+}
+
+void requestTempsCyclic(uint8_t interval_ms) {
+  CAN_message_t msg = {0};
+  msg.id = BAMOCAR_RX_ID;
+  msg.len = 3;
+  msg.buf[0] = 0x3D;
+  msg.buf[1] = 0x0E;  // motor temp
+  msg.buf[2] = interval_ms;
+  sendCAN(msg);
+  msg.buf[1] = 0x0F;  // inverter (IGBT) temp
+  sendCAN(msg);
+}
+
 void requestDCBusOnce() {
   CAN_message_t msg = {0};
   msg.id = BAMOCAR_RX_ID;
@@ -105,17 +127,23 @@ void readCanMessages() {
 
       if (reg == 0x40) { // STATUS register
         bamocarOnline = true;
-        uint16_t status = msg.buf[1] | (msg.buf[2] << 8);
-        bool enabled = status & 0x0001;
-        bool ready = status & 0x0004;
-        bool fault = status & 0x0040;
-
-        Serial.printf("→ STATUS 0x%04X | Enabled:%d Ready:%d Fault:%d\n",
-                      status, enabled, ready, fault);
+        statusWord = msg.buf[1] | (msg.buf[2] << 8);
       }
 
-      else if (reg == 0x30) { // RPM feedback
-        rpmFeedback = msg.buf[1] | (msg.buf[2] << 8);
+      else if (reg == 0x30) { // RPM feedback (signed, normalised to NMAX)
+        rpmFeedback = (int16_t)(msg.buf[1] | (msg.buf[2] << 8));
+      }
+
+      else if (reg == 0x20) { // I_ACT actual current (signed, normalised to IMAX)
+        actualCurrent = (int16_t)(msg.buf[1] | (msg.buf[2] << 8));
+      }
+
+      else if (reg == 0x0E) { // motor temperature (°C)
+        motorTemp = (int16_t)(msg.buf[1] | (msg.buf[2] << 8));
+      }
+
+      else if (reg == 0x0F) { // inverter (IGBT) temperature (°C)
+        inverterTemp = (int16_t)(msg.buf[1] | (msg.buf[2] << 8));
       }
 
       else if (reg == 0xEB) { // DC bus voltage

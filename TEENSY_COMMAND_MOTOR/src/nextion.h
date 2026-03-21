@@ -1,11 +1,11 @@
 #pragma once
 #include "config.h"
 
-// Nextion connected to Serial1 (TX1=pin1, RX1=pin0 on Teensy 4.1)
-#define NEXTION_SERIAL Serial1
-#define NEXTION_BAUD   9600
+// Nextion connected to Serial2 (TX2=pin8, RX2=pin7 on Teensy 4.1)
+#define NEXTION_SERIAL Serial7
+#define NEXTION_BAUD   115200
 
-// ---- Page IDs — fill in after building GUI ----
+// ---- Page IDs ----
 #define NX_PAGE_BOOT   0
 #define NX_PAGE_DRIVE  1
 
@@ -20,6 +20,8 @@
 #define NX_DRIVE_DCBUS  "n_dcbus"   // number: DC bus voltage, whole volts
 #define NX_DRIVE_FAULT  "t_fault"   // text: "OK" or "FAULT"
 #define NX_DRIVE_STATE  "t_drive"   // text: "DRIVE: ON" or "DRIVE: OFF"
+#define NX_DRIVE_MTEMP  "n_mtemp"   // number: motor temperature, °C
+#define NX_DRIVE_ITEMP  "n_itemp"   // number: inverter temperature, °C
 
 void nextionBegin();
 void nextionPage(uint8_t page);

@@ -10,6 +10,7 @@
 // ---------- User constants ----------
 #define MAX_ACCEL_PERCENT 100
 #define TORQUE_MAX 32767
+#define RPM_MAX    6000    // EMRAX 208: BAMOCAR inverter cap (1000 Hz, 10 pole pairs)
 
 // ---------- APPS (pedal sensor) config ----------
 // Set REST to ADC reading with pedal physically released.
@@ -17,10 +18,10 @@
 // Formula handles both rising and falling sensor directions.
 #define APPS1_PIN  A0
 #define APPS2_PIN  A1
-#define APPS1_REST 2930   // calibrate: ADC at physical zero
-#define APPS1_FULL 1860   // calibrate: ADC at full pedal
-#define APPS2_REST 2930   // calibrate: ADC at physical zero
-#define APPS2_FULL 1860   // calibrate: ADC at full pedal
+#define APPS1_REST 2884   // calibrate: ADC at physical zero
+#define APPS1_FULL 1835   // calibrate: ADC at full pedal
+#define APPS2_REST 2910   // calibrate: ADC at physical zero
+#define APPS2_FULL 1845   // calibrate: ADC at full pedal
 
 // Dead band: any reading below this % is treated as zero torque.
 // Absorbs calibration offset so pedal at rest never produces creep.
@@ -42,6 +43,9 @@ extern uint32_t lastTorqueSend;
 extern bool bamocarOnline;
 extern int rpmFeedback;
 extern int statusWord;
+extern int16_t actualCurrent;
+extern int16_t motorTemp;
+extern int16_t inverterTemp;
 extern float dcBusVoltage;
 extern int apps1Raw;
 extern int apps2Raw;

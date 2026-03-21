@@ -3,7 +3,7 @@
 #define DEBOUNCE_MS 50
 
 // --- Edge detect state ---
-static bool     _lastState = HIGH;
+static bool     _lastState = LOW;
 static uint32_t _lastTime  = 0;
 
 // --- Hold detect state ---
@@ -11,17 +11,17 @@ static uint32_t _pressStart = 0;
 static bool     _holdFired  = false;
 
 void buttonInit() {
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(BUTTON_PIN, INPUT_PULLDOWN);
 }
 
-// Returns true exactly once per press (falling edge, debounced).
+// Returns true exactly once per press (rising edge, debounced).
 bool buttonPressed() {
   bool state = digitalRead(BUTTON_PIN);
   uint32_t now = millis();
 
-  if (_lastState == HIGH && state == LOW && (now - _lastTime) > DEBOUNCE_MS) {
+  if (_lastState == LOW && state == HIGH && (now - _lastTime) > DEBOUNCE_MS) {
     _lastTime  = now;
-    _lastState = LOW;
+    _lastState = HIGH;
     return true;
   }
 
@@ -32,8 +32,8 @@ bool buttonPressed() {
 // Returns true exactly once per hold event, after button has been held
 // continuously for ms milliseconds. Resets when button is released.
 bool buttonHeldFor(uint32_t ms) {
-  bool low = (digitalRead(BUTTON_PIN) == LOW);
-  if (low) {
+  bool high = (digitalRead(BUTTON_PIN) == HIGH);
+  if (high) {
     if (_pressStart == 0) _pressStart = millis();
     if (!_holdFired && (millis() - _pressStart) >= ms) {
       _holdFired = true;

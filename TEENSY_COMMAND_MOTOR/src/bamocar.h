@@ -4,6 +4,8 @@
 void requestStatusCyclic(uint8_t interval_ms);
 void requestStatusOnce();
 void requestSpeedCyclic(uint8_t interval_ms);
+void requestCurrentCyclic(uint8_t interval_ms);
+void requestTempsCyclic(uint8_t interval_ms);
 void requestDCBusOnce();
 void clearErrors();
 void enableDrive();
