@@ -15,6 +15,7 @@ uint32_t lastTorqueSend = 0;
 bool bamocarOnline = false;
 int rpmFeedback = 0;
 int statusWord = 0;
+uint32_t bamocarErrorWord = 0;
 int16_t actualCurrent = 0;
 int16_t motorTemp    = 0;
 int16_t inverterTemp = 0;
@@ -79,7 +80,7 @@ static void reenableDriveSequence() {
   readCanMessages();
 
   nextionBootStatus("RE-ENABLE", "configuring timeout...");
-  configureCanTimeout(2000);
+  configureCanTimeout(CAN_TIMEOUT_MS);
   delay(200);
 
   nextionBootStatus("RE-ENABLE", "enabling drive...");
@@ -104,7 +105,7 @@ static void reenableDriveSequence() {
 void executeStep(int step) {
   currentStep = step;
   switch (step) {
-    case 1: requestStatusCyclic(100); requestSpeedCyclic(100); requestCurrentCyclic(100); requestTempsCyclic(500); break;
+    case 1: requestStatusCyclic(100); requestErrorsCyclic(100); requestSpeedCyclic(100); requestCurrentCyclic(100); requestTempsCyclic(500); break;
     case 2: requestDCBusOnce();       break;
     case 3: clearErrors();            break;
     case 4: configureCanTimeout(2000); break;

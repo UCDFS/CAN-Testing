@@ -11,6 +11,7 @@
 #define MAX_ACCEL_PERCENT 100
 #define TORQUE_MAX 32767
 #define RPM_MAX    6000    // EMRAX 208: BAMOCAR inverter cap (1000 Hz, 10 pole pairs)
+#define CAN_TIMEOUT_MS 100  // if no messages received within this time, assume BAMOCAR offline
 
 // ---------- APPS (pedal sensor) config ----------
 // Set REST to ADC reading with pedal physically released.
@@ -49,6 +50,7 @@ extern uint32_t lastTorqueSend;
 extern bool bamocarOnline;
 extern int rpmFeedback;
 extern int statusWord;
+extern uint32_t bamocarErrorWord;
 extern int16_t actualCurrent;
 extern int16_t motorTemp;
 extern int16_t inverterTemp;

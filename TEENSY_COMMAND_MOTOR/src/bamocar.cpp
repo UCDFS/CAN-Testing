@@ -16,6 +16,16 @@ void requestStatusCyclic(uint8_t interval_ms) {
   sendCAN(msg);
 }
 
+void requestErrorsCyclic(uint8_t interval_ms) {
+  CAN_message_t msg = {0};
+  msg.id = BAMOCAR_RX_ID;
+  msg.len = 3;
+  msg.buf[0] = 0x3D;
+  msg.buf[1] = 0x8F;
+  msg.buf[2] = interval_ms;
+  sendCAN(msg);
+}
+
 void requestStatusOnce() {
   CAN_message_t msg = {0};
   msg.id = BAMOCAR_RX_ID;
@@ -51,10 +61,10 @@ void requestTempsCyclic(uint8_t interval_ms) {
   msg.id = BAMOCAR_RX_ID;
   msg.len = 3;
   msg.buf[0] = 0x3D;
-  msg.buf[1] = 0x0E;  // motor temp
+  msg.buf[1] = 0x49;  // motor temp
   msg.buf[2] = interval_ms;
   sendCAN(msg);
-  msg.buf[1] = 0x0F;  // inverter (IGBT) temp
+  msg.buf[1] = 0x4A;  // inverter (IGBT) temp
   sendCAN(msg);
 }
 
@@ -143,16 +153,20 @@ void readCanMessages() {
         actualCurrent = (int16_t)(msg.buf[1] | (msg.buf[2] << 8));
       }
 
-      else if (reg == 0x0E) { // motor temperature (°C)
+      else if (reg == 0x49) { // motor temperature (°C)
         motorTemp = (int16_t)(msg.buf[1] | (msg.buf[2] << 8));
       }
 
-      else if (reg == 0x0F) { // inverter (IGBT) temperature (°C)
+      else if (reg == 0x4A) { // inverter (IGBT) temperature (°C)
         inverterTemp = (int16_t)(msg.buf[1] | (msg.buf[2] << 8));
       }
 
       else if (reg == 0xEB) { // DC bus voltage (UDC = raw / 31.5848, per BAMOCAR FAQ)
         dcBusVoltage = (msg.buf[1] | (msg.buf[2] << 8)) / 31.5848f;
+      }
+
+      else if (reg == 0x8F) { // Error register
+        bamocarErrorWord = msg.buf[1] | (msg.buf[2] << 8);
       }
     }
   }

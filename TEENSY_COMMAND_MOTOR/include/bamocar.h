@@ -2,6 +2,7 @@
 #include "config.h"
 
 void requestStatusCyclic(uint8_t interval_ms);
+void requestErrorsCyclic(uint8_t interval_ms);
 void requestStatusOnce();
 void requestSpeedCyclic(uint8_t interval_ms);
 void requestCurrentCyclic(uint8_t interval_ms);
