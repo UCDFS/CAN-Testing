@@ -1,5 +1,6 @@
 #include "bamocar.h"
 #include "logging.h"
+#include "temp_converters.h"
 
 void sendCAN(const CAN_message_t &msg) {
   Can1.write(msg);
@@ -154,11 +155,13 @@ void readCanMessages() {
       }
 
       else if (reg == 0x49) { // motor temperature (°C)
-        motorTemp = (int16_t)(msg.buf[1] | (msg.buf[2] << 8));
+        uint16_t raw = msg.buf[1] | (msg.buf[2] << 8);
+        motorTemp = motorADCToTemp(raw);
       }
 
       else if (reg == 0x4A) { // inverter (IGBT) temperature (°C)
-        inverterTemp = (int16_t)(msg.buf[1] | (msg.buf[2] << 8));
+        uint16_t raw = msg.buf[1] | (msg.buf[2] << 8);
+        inverterTemp = igbtADCToTemp(raw);
       }
 
       else if (reg == 0xEB) { // DC bus voltage (UDC = raw / 31.5848, per BAMOCAR FAQ)

@@ -62,6 +62,6 @@ void nextionUpdateDrive() {
   nextionNum(NX_DRIVE_DCBUS,  (int)dcBusVoltage);
   nextionText(NX_DRIVE_FAULT, pedalFault ? "FAULT" : "OK");
   nextionText(NX_DRIVE_STATE, driveEnabled ? "ON" : "OFF");
-  nextionNum(NX_DRIVE_MTEMP, motorTemp    / 10);
-  nextionNum(NX_DRIVE_ITEMP, inverterTemp / 10);
+  nextionNum(NX_DRIVE_MTEMP, (int)motorTemp);
+  nextionNum(NX_DRIVE_ITEMP, (int)inverterTemp);
 }
