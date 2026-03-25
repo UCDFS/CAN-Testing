@@ -12,4 +12,5 @@ void enableDrive();
 void disableDrive();
 void sendTorqueCommand(int16_t torqueValue);
 void configureCanTimeout(uint16_t ms);
+void sendCAN(const CAN_message_t &msg);
 void readCanMessages();

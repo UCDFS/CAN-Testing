@@ -1,6 +1,11 @@
 #include "bamocar.h"
 #include "logging.h"
 
+void sendCAN(const CAN_message_t &msg) {
+  Can1.write(msg);
+  logCANFrame(msg, "TX");
+}
+
 void requestStatusCyclic(uint8_t interval_ms) {
   CAN_message_t msg = {0};
   msg.id = BAMOCAR_RX_ID;
@@ -146,8 +151,8 @@ void readCanMessages() {
         inverterTemp = (int16_t)(msg.buf[1] | (msg.buf[2] << 8));
       }
 
-      else if (reg == 0xEB) { // DC bus voltage
-        dcBusVoltage = (msg.buf[1] | (msg.buf[2] << 8)) * 0.1f;
+      else if (reg == 0xEB) { // DC bus voltage (UDC = raw / 31.5848, per BAMOCAR FAQ)
+        dcBusVoltage = (msg.buf[1] | (msg.buf[2] << 8)) / 31.5848f;
       }
     }
   }

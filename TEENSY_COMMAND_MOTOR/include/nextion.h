@@ -1,7 +1,7 @@
 #pragma once
 #include "config.h"
 
-// Nextion connected to Serial2 (TX2=pin8, RX2=pin7 on Teensy 4.1)
+// Nextion connected to Serial7 (TX7/RX7 on Teensy 4.1)
 #define NEXTION_SERIAL Serial7
 #define NEXTION_BAUD   115200
 

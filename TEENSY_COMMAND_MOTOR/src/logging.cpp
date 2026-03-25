@@ -54,11 +54,6 @@ void logCANFrame(const CAN_message_t &msg, const char *dir) {
   _append(line, n);
 }
 
-void sendCAN(const CAN_message_t &msg) {
-  Can1.write(msg);
-  logCANFrame(msg, "TX");
-}
-
 // ---------- Sensor snapshot logging ----------
 // Record: S,<ms>,<apps1_raw>,<apps2_raw>,<pedal_fault>,<torque_cmd>,<rpm>,<dcbus_dV>
 // dcbus_dV = dcBusVoltage * 10 (integer decivolts, avoids float formatting).

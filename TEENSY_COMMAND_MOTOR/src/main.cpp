@@ -28,8 +28,6 @@ bool driveEnabled = false;
 
 // Blocks until button pressed. Keeps CAN drained and sends a heartbeat
 // every 500 ms so the BAMOCAR CAN timeout never expires while waiting.
-#define DRIVE_HOLD_MS 3000
-
 static void waitForButton(const char *prompt) {
   nextionBootStatus(prompt, "press to continue");
   uint32_t lastHeartbeat = 0;
@@ -72,6 +70,36 @@ static bool pedalAtRest() {
   return pct < PEDAL_DEADBAND_PERCENT;
 }
 
+// Full re-enable handshake: mirrors startup steps 3-7.
+// Blocks until handshake is complete and pedal is released.
+static void reenableDriveSequence() {
+  nextionBootStatus("RE-ENABLE", "clearing errors...");
+  clearErrors();
+  delay(200);
+  readCanMessages();
+
+  nextionBootStatus("RE-ENABLE", "configuring timeout...");
+  configureCanTimeout(2000);
+  delay(200);
+
+  nextionBootStatus("RE-ENABLE", "enabling drive...");
+  clearErrors();
+  delay(100);
+  enableDrive();
+  requestStatusOnce();
+  delay(500);
+  sendTorqueCommand(0);
+
+  nextionBootStatus("RELEASE PEDAL");
+  while (!pedalAtRest()) {
+    readCanMessages();
+    delay(50);
+  }
+
+  driveEnabled = true;
+  nextionPage(NX_PAGE_DRIVE);
+}
+
 // ---------- Step Execution ----------
 void executeStep(int step) {
   currentStep = step;
@@ -94,44 +122,30 @@ void executeStep(int step) {
 
 // ---------- Setup ----------
 void setup() {
-  Serial.begin(115200);
-  while (!Serial && millis() < 2000);  // wait up to 2s for USB serial
-  Serial.println("[BOOT] Serial ready");
-
   buttonInit();
-  Serial.println("[BOOT] Button init OK");
-
   nextionBegin();
   nextionBootStatus("INITIALISING");
-  Serial.println("[BOOT] Nextion init OK");
 
   Can1.begin();
   Can1.setBaudRate(500000);
   analogReadResolution(12);
-  Serial.println("[BOOT] CAN1 init OK @ 500kbps");
 
   if (!SD.begin(chipSelect)) {
     nextionBootStatus("SD: NONE", "logging disabled");
-    Serial.println("[BOOT] SD: not detected, logging disabled");
   } else {
     String filename = generateFilename();
     logFile = SD.open(filename.c_str(), FILE_WRITE);
     if (!logFile) {
       nextionBootStatus("SD: ERROR", "file open failed");
-      Serial.println("[BOOT] SD: file open failed");
     } else {
       logWriteHeader();
       nextionBootStatus("SD: OK", filename.c_str());
-      Serial.print("[BOOT] SD: logging to ");
-      Serial.println(filename);
     }
   }
   delay(800);
 
   // --- Step 1: press to start, wait for BAMOCAR ---
-  Serial.println("[STEP 1] Waiting for button...");
   waitForButton("PRESS TO START");
-  Serial.println("[STEP 1] Starting cyclic requests, waiting for BAMOCAR online...");
   nextionBootStatus("WAITING BAMOCAR");
   executeStep(1);
   while (!bamocarOnline) {
@@ -140,53 +154,37 @@ void setup() {
     delay(300);
   }
   nextionBootStatus("BAMOCAR ONLINE");
-  Serial.print("[STEP 1] BAMOCAR online. statusWord=0x");
-  Serial.println(statusWord, HEX);
   delay(400);
 
   // --- Steps 2-4: DC bus, clear errors, CAN timeout (automatic) ---
   executeStep(2);
   delay(200);
-  readCanMessages();  // process DC bus response before printing
-  Serial.print("[STEP 2] DC bus voltage: ");
-  Serial.print(dcBusVoltage, 1);
-  Serial.println(" V");
+  readCanMessages();
 
   executeStep(3);
   delay(200);
-  Serial.println("[STEP 3] Clear errors sent");
 
   executeStep(4);
   delay(200);
-  Serial.println("[STEP 4] CAN timeout configured (2000ms)");
 
   // --- Steps 5-7: hold 3s to enable drive and enter torque control ---
-  Serial.println("[STEP 5] Hold button 3s to enable drive...");
   waitForButtonHeld("HOLD 3s: ENABLE");
   nextionBootStatus("ENABLING DRIVE");
-  Serial.println("[STEP 5] Enabling drive...");
   executeStep(5);
   delay(500);
   executeStep(6);
   delay(500);
-  Serial.println("[STEP 5/6] Drive enabled, zero torque sent");
 
   // --- Wait for pedal release (automatic) ---
   nextionBootStatus("RELEASE PEDAL");
-  Serial.println("[PEDAL] Waiting for pedal release...");
   while (!pedalAtRest()) {
     readCanMessages();
     delay(50);
   }
-  Serial.print("[PEDAL] Pedal at rest. APPS1=");
-  Serial.print(analogRead(APPS1_PIN));
-  Serial.print("  APPS2=");
-  Serial.println(analogRead(APPS2_PIN));
 
-  // --- Step 7: enter torque control (automatic after pedal rest) ---
+  // --- Step 7: enter torque control ---
   executeStep(7);
   nextionPage(NX_PAGE_DRIVE);
-  Serial.println("[STEP 7] Entering torque control loop");
 }
 
 // ---------- Loop ----------
@@ -205,16 +203,8 @@ void loop() {
       nextionText(NX_DRIVE_STATE, "OFF");
       buttonResetHold();  // don't count this press toward re-enable hold
     } else if (!driveEnabled && buttonHeldFor(DRIVE_HOLD_MS)) {
-      // 3-second hold required to re-enable
-      if (pedalAtRest()) {
-        clearErrors();
-        delay(100);
-        enableDrive();
-        driveEnabled = true;
-        nextionText(NX_DRIVE_STATE, "ON");
-      } else {
-        nextionText(NX_DRIVE_STATE, "RELEASE PEDAL");
-      }
+      // 3-second hold triggers full re-enable handshake (mirrors startup)
+      reenableDriveSequence();
     }
   }
 
@@ -228,39 +218,12 @@ void loop() {
     lastTorqueSend = millis();
   }
 
-  // --- Periodic flush + display update + debug print ---
+  // --- Periodic flush + display update ---
   static uint32_t lastFlush = 0;
   if (millis() - lastFlush > 500) {
     logFlush();
     lastFlush = millis();
     requestDCBusOnce();
     nextionUpdateDrive();
-    Serial.print("[LOOP] drive="); Serial.print(driveEnabled ? "ON" : "OFF");
-    Serial.print("  fault=");      Serial.print(pedalFault  ? "YES" : "NO");
-    Serial.print("  torque=");     Serial.print(currentTorque);
-    Serial.print("  rpm=");        Serial.print((int)((float)rpmFeedback / 32767.0f * RPM_MAX));
-    Serial.print("  iact=");       Serial.print(actualCurrent);
-    Serial.print("  mtemp=");      Serial.print(motorTemp);
-    Serial.print("C  itemp=");     Serial.print(inverterTemp); Serial.print("C");
-    Serial.print("  dcbus=");      Serial.print(dcBusVoltage, 1);
-    Serial.print("V  A1=");        Serial.print(apps1Raw);
-    Serial.print("  A2=");         Serial.println(apps2Raw);
-    // Decode STATUS word key bits
-    Serial.print("[STATUS 0x");    Serial.print(statusWord, HEX);
-    Serial.print("] active=");     Serial.print((statusWord >> 1) & 1);
-    Serial.print("  fault=");      Serial.print((statusWord >> 2) & 1);
-    Serial.print("  warn=");       Serial.print((statusWord >> 3) & 1);
-    Serial.print("  ilim=");       Serial.println((statusWord >> 5) & 1);
-    if (pedalFault) {
-      float pct1 = (float)(APPS1_REST - apps1Raw) * 100.0f / (float)(APPS1_REST - APPS1_FULL);
-      float pct2 = (float)(APPS2_REST - apps2Raw) * 100.0f / (float)(APPS2_REST - APPS2_FULL);
-      Serial.print("[FAULT] APPS plausibility: A1=");
-      Serial.print(pct1, 1);
-      Serial.print("%  A2=");
-      Serial.print(pct2, 1);
-      Serial.print("%  delta=");
-      Serial.print(fabsf(pct1 - pct2), 1);
-      Serial.println("%");
-    }
   }
 }

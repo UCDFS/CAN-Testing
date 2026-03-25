@@ -12,6 +12,5 @@
 String generateFilename();
 void logWriteHeader();
 void logCANFrame(const CAN_message_t &msg, const char *dir);
-void sendCAN(const CAN_message_t &msg);
 void logSensor(int apps1Raw, int apps2Raw, bool fault, int16_t torque, int rpm, int dcbusDV);
 void logFlush();

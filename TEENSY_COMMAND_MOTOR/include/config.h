@@ -7,7 +7,7 @@
 #define BAMOCAR_RX_ID 0x201  // Teensy → Bamocar
 #define BAMOCAR_TX_ID 0x181  // Bamocar → Teensy
 
-// ---------- User constants ----------
+// ---------- Motor constants ----------
 #define MAX_ACCEL_PERCENT 100
 #define TORQUE_MAX 32767
 #define RPM_MAX    6000    // EMRAX 208: BAMOCAR inverter cap (1000 Hz, 10 pole pairs)
@@ -30,6 +30,12 @@
 // Plausibility: if APPS1 and APPS2 disagree by more than this %, fault.
 // Fault clears only when both sensors return below the dead band.
 #define PEDAL_PLAUSIBILITY_PERCENT 10
+
+// ---------- Button ----------
+#define BUTTON_PIN 2
+
+// ---------- Drive ----------
+#define DRIVE_HOLD_MS 3000  // ms the button must be held to enable/re-enable drive
 
 // ---------- CAN bus ----------
 extern FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> Can1;
