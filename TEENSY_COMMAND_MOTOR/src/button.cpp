@@ -52,3 +52,9 @@ void buttonResetHold() {
   _pressStart = 0;
   _holdFired  = false;
 }
+
+// Returns how long the button has been continuously held, or 0 if not held.
+uint32_t buttonHoldElapsed() {
+  if (_pressStart == 0) return 0;
+  return millis() - _pressStart;
+}

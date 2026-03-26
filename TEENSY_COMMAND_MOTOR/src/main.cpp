@@ -27,6 +27,17 @@ bool driveEnabled = false;
 
 // ---------- Helpers ----------
 
+// Fills buf (must be ≥13 bytes) with an ASCII progress bar like [####      ]
+// elapsed/total drives fill level; bar is always 10 chars wide.
+static void holdBar(uint32_t elapsed, uint32_t total, char *buf) {
+  int filled = (int)(elapsed * 10 / total);
+  if (filled > 10) filled = 10;
+  buf[0] = '[';
+  for (int i = 0; i < 10; i++) buf[i + 1] = (i < filled) ? '#' : ' ';
+  buf[11] = ']';
+  buf[12] = '\0';
+}
+
 // Blocks until button pressed. Keeps CAN drained and sends a heartbeat
 // every 500 ms so the BAMOCAR CAN timeout never expires while waiting.
 static void waitForButton(const char *prompt) {
@@ -43,7 +54,7 @@ static void waitForButton(const char *prompt) {
 }
 
 // Blocks until button is held continuously for DRIVE_HOLD_MS.
-// Releasing and re-pressing resets the timer.
+// Releasing and re-pressing resets the timer. t_detail shows a progress bar.
 static void waitForButtonHeld(const char *prompt) {
   nextionBootStatus(prompt, "hold 3s to enable");
   uint32_t lastHeartbeat = 0;
@@ -56,8 +67,13 @@ static void waitForButtonHeld(const char *prompt) {
     }
     if (digitalRead(BUTTON_PIN) == HIGH) {
       if (holdStart == 0) holdStart = millis();
-      if (millis() - holdStart >= DRIVE_HOLD_MS) break;
+      uint32_t elapsed = millis() - holdStart;
+      if (elapsed >= DRIVE_HOLD_MS) break;
+      char bar[13];
+      holdBar(elapsed, DRIVE_HOLD_MS, bar);
+      nextionText(NX_BOOT_DETAIL, bar);
     } else {
+      if (holdStart != 0) nextionText(NX_BOOT_DETAIL, "hold 3s to enable");
       holdStart = 0;
     }
     delay(10);
@@ -203,9 +219,22 @@ void loop() {
       currentTorque = 0;
       nextionText(NX_DRIVE_STATE, "OFF");
       buttonResetHold();  // don't count this press toward re-enable hold
-    } else if (!driveEnabled && buttonHeldFor(DRIVE_HOLD_MS)) {
+    } else if (!driveEnabled) {
+      // Update hold progress bar on t_drive while button is being held
+      static uint32_t lastBarUpdate = 0;
+      if (millis() - lastBarUpdate >= 50) {
+        lastBarUpdate = millis();
+        uint32_t elapsed = buttonHoldElapsed();
+        if (elapsed > 0) {
+          char bar[13];
+          holdBar(elapsed, DRIVE_HOLD_MS, bar);
+          nextionText(NX_DRIVE_STATE, bar);
+        }
+      }
       // 3-second hold triggers full re-enable handshake (mirrors startup)
-      reenableDriveSequence();
+      if (buttonHeldFor(DRIVE_HOLD_MS)) {
+        reenableDriveSequence();
+      }
     }
   }
 
@@ -226,5 +255,14 @@ void loop() {
     lastFlush = millis();
     requestDCBusOnce();
     nextionUpdateDrive();
+    // nextionUpdateDrive writes "OFF" to t_drive; restore bar if still holding
+    if (!driveEnabled) {
+      uint32_t elapsed = buttonHoldElapsed();
+      if (elapsed > 0) {
+        char bar[13];
+        holdBar(elapsed, DRIVE_HOLD_MS, bar);
+        nextionText(NX_DRIVE_STATE, bar);
+      }
+    }
   }
 }
