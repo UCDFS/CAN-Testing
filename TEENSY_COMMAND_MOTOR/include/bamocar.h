@@ -15,3 +15,4 @@ void sendTorqueCommand(int16_t torqueValue);
 void configureCanTimeout(uint16_t ms);
 void sendCAN(const CAN_message_t &msg);
 void readCanMessages();
+void bamocarErrorDescription(uint32_t errorWord, char *buf, size_t len);

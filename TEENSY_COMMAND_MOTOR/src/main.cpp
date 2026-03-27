@@ -24,6 +24,7 @@ int apps1Raw = 0;
 int apps2Raw = 0;
 bool pedalFault = false;
 bool driveEnabled = false;
+uint32_t lastBAMOCARRx = 0;
 
 // ---------- Helpers ----------
 
@@ -91,6 +92,11 @@ static bool pedalAtRest() {
 // Blocks until handshake is complete and pedal is released.
 static void reenableDriveSequence() {
   nextionBootStatus("RE-ENABLE", "clearing errors...");
+  requestStatusCyclic(100);
+  requestErrorsCyclic(100);
+  requestSpeedCyclic(100);
+  requestCurrentCyclic(100);
+  requestTempsCyclic(500);
   clearErrors();
   delay(200);
   readCanMessages();
@@ -207,6 +213,40 @@ void setup() {
 // ---------- Loop ----------
 void loop() {
   readCanMessages();
+
+  // --- BAMOCAR heartbeat timeout ---
+  static bool bamocarOffline = false;
+  if (currentStep == 7 && bamocarOnline && millis() - lastBAMOCARRx > 500) {
+    if (!bamocarOffline) {
+      bamocarOffline = true;
+      bamocarOnline = false;
+      driveEnabled = false;
+      sendTorqueCommand(0);
+      currentTorque = 0;
+      nextionPage(NX_PAGE_BOOT);
+      nextionBootStatus("BAMOCAR OFFLINE", "waiting...");
+    }
+  } else if (bamocarOffline && bamocarOnline) {
+    bamocarOffline = false;  // frames resumed; user must re-enable via 3s hold
+  }
+
+  // --- BAMOCAR error detection ---
+  // On first error: disable drive, switch to boot page, show ERROR + fault name.
+  static bool inErrorState = false;
+  if (currentStep == 7 && bamocarErrorWord != 0) {
+    if (!inErrorState) {
+      inErrorState = true;
+      driveEnabled = false;
+      sendTorqueCommand(0);
+      currentTorque = 0;
+      char detail[32];
+      bamocarErrorDescription(bamocarErrorWord, detail, sizeof(detail));
+      nextionPage(NX_PAGE_BOOT);
+      nextionBootStatus("ERROR", detail);
+    }
+  } else if (inErrorState && bamocarErrorWord == 0) {
+    inErrorState = false;
+  }
 
   // --- Drive enable/disable toggle ---
   if (currentStep == 7) {

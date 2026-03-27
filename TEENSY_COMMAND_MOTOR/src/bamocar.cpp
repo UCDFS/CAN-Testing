@@ -133,6 +133,39 @@ void sendTorqueCommand(int16_t torqueValue) {
   sendCAN(msg);
 }
 
+// ---------- Error word lookup (RegID 0x8F, BAMOCAR-PG-D3 Manual) ----------
+static const char *const ERROR_NAMES[16] = {
+  "BADPARAS",     // bit 0  - Parameter damaged
+  "POWERFAULT",   // bit 1  - Hardware error
+  "RFE",          // bit 2  - Safety circuit faulty
+  "BUS TIMEOUT",  // bit 3  - CAN timeout exceeded
+  "FEEDBACK",     // bit 4  - Bad/wrong encoder signal
+  "POWERVOLTAGE", // bit 5  - Power voltage missing
+  "MOTORTEMP",    // bit 6  - Engine temperature too high
+  "DEVICETEMP",   // bit 7  - Unit temperature too high
+  "OVERVOLTAGE",  // bit 8  - Overvoltage
+  "I_PEAK",       // bit 9  - Overcurrent
+  "RACEAWAY",     // bit 10 - Spinning
+  "USER",         // bit 11 - User error selection
+  "",             // bit 12 - (unmapped)
+  "",             // bit 13 - (unmapped)
+  "HW_ERR",       // bit 14 - Current measurement error
+  "BALLAST"       // bit 15 - Ballast circuit overloaded
+};
+
+void bamocarErrorDescription(uint32_t errorWord, char *buf, size_t len) {
+  for (int bit = 0; bit < 16; bit++) {
+    if (errorWord & (1u << bit)) {
+      const char *name = (ERROR_NAMES[bit][0]) ? ERROR_NAMES[bit] : "UNKNOWN";
+      strncpy(buf, name, len - 1);
+      buf[len - 1] = '\0';
+      return;
+    }
+  }
+  strncpy(buf, "UNKNOWN", len - 1);
+  buf[len - 1] = '\0';
+}
+
 // ---------- CAN RX ----------
 void readCanMessages() {
   CAN_message_t msg;
@@ -140,6 +173,7 @@ void readCanMessages() {
     logCANFrame(msg, "RX");
 
     if (msg.id == BAMOCAR_TX_ID && msg.len >= 3) {
+      lastBAMOCARRx = millis();
       uint8_t reg = msg.buf[0];
 
       if (reg == REG_STATUS) { // STATUS register

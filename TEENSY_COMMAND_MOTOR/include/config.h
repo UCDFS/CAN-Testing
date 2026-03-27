@@ -59,3 +59,4 @@ extern int apps1Raw;
 extern int apps2Raw;
 extern bool pedalFault;
 extern bool driveEnabled;
+extern uint32_t lastBAMOCARRx;
