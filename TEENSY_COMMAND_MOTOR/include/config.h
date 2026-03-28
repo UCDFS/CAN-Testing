@@ -2,6 +2,9 @@
 #include <FlexCAN_T4.h>
 #include <SD.h>
 #include <SPI.h>
+#include <Adafruit_MPU6050.h>
+#include <Adafruit_Sensor.h>
+#include <Wire.h>
 
 // ---------- BAMOCAR IDs ----------
 #define BAMOCAR_RX_ID 0x201  // Teensy → Bamocar
@@ -37,6 +40,11 @@
 
 // ---------- Drive ----------
 #define DRIVE_HOLD_MS 3000  // ms the button must be held to enable/re-enable drive
+
+// ---------- Adafruit MPU -----------
+#define MPU_ACCEL_RANGE MPU6050_RANGE_8_G
+#define MPU_GYRO_RANGE MPU6050_RANGE_500_DEG
+#define MPU_FILTER_BW MPU6050_BAND_21_HZ
 
 // ---------- CAN bus ----------
 extern FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> Can1;
