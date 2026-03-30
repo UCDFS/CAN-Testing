@@ -27,7 +27,7 @@ String generateFilename() {
   int index = 1;
   char filename[32];
   do {
-    sprintf(filename, "CAN_log_%04d.csv", index);
+    snprintf(filename, 31, "CAN_log_%04d.csv", index);
     index++;
   } while (SD.exists(filename));
   return String(filename);
@@ -45,10 +45,10 @@ void logWriteHeader() {
 // Always 13 columns; unused byte fields are empty.
 void logCANFrame(const CAN_message_t &msg, const char *dir) {
   char line[80];
-  int n = sprintf(line, "C,%lu,%s,%03lX,%d", millis(), dir, msg.id, msg.len);
+  int n = snprintf(line, 79, "C,%lu,%s,%03lX,%d", millis(), dir, msg.id, msg.len);
   for (int i = 0; i < 8; i++) {
-    if (i < msg.len) n += sprintf(line + n, ",%02X", msg.buf[i]);
-    else              line[n++] = ',';
+    if (i < msg.len) n += snprintf(line + n, 80 - n, ",%02X", msg.buf[i]);
+    else             n += snprintf(line + n, 80 - n, ",");
   }
   line[n++] = '\n';
   _append(line, n);
@@ -71,7 +71,7 @@ void logSensor(int apps1Raw, int apps2Raw, bool fault,
 // Record: XL,<ms>,<accel_x>,<accel_y>,<accel_z>,<gyro_x>,<gyro_y>,<gyro_z>
 void logIMU(float ax, float ay, float az, float gx, float gy, float gz) {
   char line[64];
-  int n = sprintf(line, "XL,%lu,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",
+  int n = snprintf(line, 63, "XL,%lu,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",
                   millis(), ax, ay, az, gx, gy, gz);
   _append(line, n);
 }
