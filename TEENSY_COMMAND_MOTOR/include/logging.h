@@ -13,4 +13,5 @@ String generateFilename();
 void logWriteHeader();
 void logCANFrame(const CAN_message_t &msg, const char *dir);
 void logSensor(int apps1Raw, int apps2Raw, bool fault, int16_t torque, int rpm, int dcbusDV);
+void logIMU(float ax, float ay, float az, float gx, float gy, float gz);
 void logFlush();

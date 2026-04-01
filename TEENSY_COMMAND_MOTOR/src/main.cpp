@@ -4,6 +4,7 @@
 #include "pedal.h"
 #include "nextion.h"
 #include "button.h"
+#include "MpuController.h"
 
 // ---------- Global definitions ----------
 FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> Can1;
@@ -25,6 +26,8 @@ int apps2Raw = 0;
 bool pedalFault = false;
 bool driveEnabled = false;
 uint32_t lastBAMOCARRx = 0;
+Adafruit_MPU6050 mpu;
+MpuController mpuController(mpu);
 
 // ---------- Helpers ----------
 
@@ -152,6 +155,8 @@ void setup() {
   Can1.begin();
   Can1.setBaudRate(500000);
   analogReadResolution(12);
+
+  mpuController.begin();
 
   if (!SD.begin(chipSelect)) {
     nextionBootStatus("SD: NONE", "logging disabled");
@@ -285,6 +290,7 @@ void loop() {
     else currentTorque = 0;
     sendTorqueCommand(currentTorque);
     logSensor(apps1Raw, apps2Raw, pedalFault, currentTorque, rpmFeedback, (int)(dcBusVoltage * 10));
+    mpuController.logTelemetry();
     lastTorqueSend = millis();
   }
 
