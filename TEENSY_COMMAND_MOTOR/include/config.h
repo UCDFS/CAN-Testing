@@ -15,6 +15,8 @@
 #define TORQUE_MAX 32767
 #define RPM_MAX    6000    // EMRAX 208: BAMOCAR inverter cap (1000 Hz, 10 pole pairs)
 #define CAN_TIMEOUT_MS 100  // if no messages received within this time, assume BAMOCAR offline
+#define TEMP_CAN_TIMEOUT_MS 500  // max time for temp of motor to be reported
+#define CAN_READ_DELAY_MS 50  // delay between CAN read cycles in main loop
 
 // ---------- APPS (pedal sensor) config ----------
 // Set REST to ADC reading with pedal physically released.
