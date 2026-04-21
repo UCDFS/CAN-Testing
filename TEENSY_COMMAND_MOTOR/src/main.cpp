@@ -161,13 +161,14 @@ void setup() {
   if (!SD.begin(chipSelect)) {
     nextionBootStatus("SD: NONE", "logging disabled");
   } else {
-    String filename = generateFilename();
-    logFile = SD.open(filename.c_str(), FILE_WRITE);
+    char filename[FILE_NAME_LEN];
+    strcpy(filename, generateFilename());
+    logFile = SD.open(filename, FILE_WRITE);
     if (!logFile) {
       nextionBootStatus("SD: ERROR", "file open failed");
     } else {
       logWriteHeader();
-      nextionBootStatus("SD: OK", filename.c_str());
+      nextionBootStatus("SD: OK", filename);
     }
   }
   delay(800);

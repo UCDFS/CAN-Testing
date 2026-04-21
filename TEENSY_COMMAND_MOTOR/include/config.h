@@ -48,6 +48,9 @@
 #define MPU_GYRO_RANGE MPU6050_RANGE_500_DEG
 #define MPU_FILTER_BW MPU6050_BAND_21_HZ
 
+// ---------- Logging ----------
+#define FILE_NAME_LEN 32
+
 // ---------- CAN bus ----------
 extern FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> Can1;
 extern const int chipSelect;
