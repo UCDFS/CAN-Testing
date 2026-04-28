@@ -23,14 +23,14 @@ static void _append(const char *data, uint16_t len) {
 }
 
 // ---------- File management ----------
-String generateFilename() {
+char* generateFilename() {
   int index = 1;
-  char filename[32];
+  char filename[FILE_NAME_LEN];
   do {
-    snprintf(filename, 31, "CAN_log_%04d.csv", index);
+    snprintf(filename, FILE_NAME_LEN - 1, "CAN_log_%04d.csv", index);
     index++;
   } while (SD.exists(filename));
-  return String(filename);
+  return filename;
 }
 
 void logWriteHeader() {
@@ -58,10 +58,10 @@ void logCANFrame(const CAN_message_t &msg, const char *dir) {
 // Record: S,<ms>,<apps1_raw>,<apps2_raw>,<pedal_fault>,<torque_cmd>,<rpm>,<dcbus_dV>
 // dcbus_dV = dcBusVoltage * 10 (integer decivolts, avoids float formatting).
 // pedal_fault = 1 if APPS plausibility fault active.
-void logSensor(int apps1Raw, int apps2Raw, bool fault, 
-              int16_t torque, int rpm, int dcbusDV) {
+void logSensor(int16_t apps1Raw, int16_t apps2Raw, bool fault, 
+              int16_t torque, int16_t rpm, int dcbusDV) {
   char line[56];
-  int n = sprintf(line, "S,%lu,%d,%d,%d,%d,%d,%d\n",
+  int n = snprintf(line, sizeof(line), "S,%lu,%d,%d,%d,%d,%d,%d\n",
                   millis(), apps1Raw, apps2Raw, (int)fault, 
                   (int)torque, rpm, dcbusDV);
   _append(line, n);

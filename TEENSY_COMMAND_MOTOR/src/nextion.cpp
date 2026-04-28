@@ -26,19 +26,19 @@ void nextionBegin() {
 
 void nextionPage(uint8_t page) {
   char cmd[16];
-  sprintf(cmd, "page %d", page);
+  snprintf(cmd, sizeof(cmd),"page %d", page);
   sendCommand(cmd);
 }
 
 void nextionText(const char *component, const char *text) {
   char cmd[80];
-  sprintf(cmd, "%s.txt=\"%s\"", component, text);
+  snprintf(cmd, sizeof(cmd), "%s.txt=\"%s\"", component, text);
   sendCommand(cmd);
 }
 
 void nextionNum(const char *component, int value) {
   char cmd[32];
-  sprintf(cmd, "%s.val=%d", component, value);
+  snprintf(cmd, sizeof(cmd), "%s.val=%d", component, value);
   sendCommand(cmd);
 }
 
