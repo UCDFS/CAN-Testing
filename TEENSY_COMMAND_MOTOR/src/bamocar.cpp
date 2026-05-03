@@ -178,7 +178,7 @@ void readCanMessages() {
 
       if (reg == REG_STATUS) { // STATUS register
         bamocarOnline = true;
-        statusWord = msg.buf[1] | (msg.buf[2] << 8);
+        statusWord = (int16_t)(msg.buf[1] | (msg.buf[2] << 8));
       }
 
       else if (reg == REG_SPEED_ACTUAL) { // RPM feedback (signed, normalised to NMAX)

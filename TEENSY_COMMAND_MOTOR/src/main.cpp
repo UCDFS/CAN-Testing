@@ -10,19 +10,19 @@
 FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> Can1;
 const int chipSelect = BUILTIN_SDCARD;
 File logFile;
-int currentStep = 0;
+int8_t currentStep = 0;
 int16_t currentTorque = 0;
 uint32_t lastTorqueSend = 0;
 bool bamocarOnline = false;
-int rpmFeedback = 0;
-int statusWord = 0;
+int16_t rpmFeedback = 0;
+int16_t statusWord = 0;
 uint32_t bamocarErrorWord = 0;
 int16_t actualCurrent = 0;
 float motorTemp    = 0.0f;
 float inverterTemp = 0.0f;
 float dcBusVoltage = 0.0;
-int apps1Raw = 0;
-int apps2Raw = 0;
+int16_t apps1Raw = 0;
+int16_t apps2Raw = 0;
 bool pedalFault = false;
 bool driveEnabled = false;
 uint32_t lastBAMOCARRx = 0;
@@ -95,31 +95,31 @@ static bool pedalAtRest() {
 // Blocks until handshake is complete and pedal is released.
 static void reenableDriveSequence() {
   nextionBootStatus("RE-ENABLE", "clearing errors...");
-  requestStatusCyclic(100);
-  requestErrorsCyclic(100);
-  requestSpeedCyclic(100);
-  requestCurrentCyclic(100);
-  requestTempsCyclic(500);
+  requestStatusCyclic(CAN_TIMEOUT_MS);
+  requestErrorsCyclic(CAN_TIMEOUT_MS);
+  requestSpeedCyclic(CAN_TIMEOUT_MS);
+  requestCurrentCyclic(CAN_TIMEOUT_MS);
+  requestTempsCyclic(TEMP_CAN_TIMEOUT_MS);
   clearErrors();
-  delay(200);
+  delay(CAN_TIMEOUT_MS*2);
   readCanMessages();
 
   nextionBootStatus("RE-ENABLE", "configuring timeout...");
   configureCanTimeout(CAN_TIMEOUT_MS);
-  delay(200);
+  delay(CAN_TIMEOUT_MS*2);
 
   nextionBootStatus("RE-ENABLE", "enabling drive...");
   clearErrors();
-  delay(100);
+  delay(CAN_TIMEOUT_MS);
   enableDrive();
   requestStatusOnce();
-  delay(500);
+  delay(CAN_TIMEOUT_MS*5);
   sendTorqueCommand(0);
 
   nextionBootStatus("RELEASE PEDAL");
   while (!pedalAtRest()) {
     readCanMessages();
-    delay(50);
+    delay(CAN_READ_DELAY_MS);
   }
 
   driveEnabled = true;
@@ -161,13 +161,14 @@ void setup() {
   if (!SD.begin(chipSelect)) {
     nextionBootStatus("SD: NONE", "logging disabled");
   } else {
-    String filename = generateFilename();
-    logFile = SD.open(filename.c_str(), FILE_WRITE);
+    char filename[FILE_NAME_LEN];
+    strcpy(filename, generateFilename());
+    logFile = SD.open(filename, FILE_WRITE);
     if (!logFile) {
       nextionBootStatus("SD: ERROR", "file open failed");
     } else {
       logWriteHeader();
-      nextionBootStatus("SD: OK", filename.c_str());
+      nextionBootStatus("SD: OK", filename);
     }
   }
   delay(800);

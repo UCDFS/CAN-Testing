@@ -9,7 +9,7 @@
 // dcbus_dV = dcBusVoltage * 10, integer decivolts.
 // pedal_fault = 1 if APPS plausibility fault active, else 0.
 
-String generateFilename();
+char* generateFilename();
 void logWriteHeader();
 void logCANFrame(const CAN_message_t &msg, const char *dir);
 void logSensor(int apps1Raw, int apps2Raw, bool fault, int16_t torque, int rpm, int dcbusDV);
